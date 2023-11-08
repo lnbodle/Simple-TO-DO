@@ -3,6 +3,33 @@
 #include <stdio.h>
 #include "todo.c"
 
+struct List list;
+
+void manage_key(SDL_Keycode key_code)
+{
+    switch (key_code)
+    {
+    case SDLK_DOWN:
+        list_next_item(&list);
+        break;
+    case SDLK_UP:
+        list_previous_item(&list);
+        break;
+    case SDLK_RETURN:
+        list_current_item_toggle_statue(&list);
+        break;
+    case SDLK_LSHIFT:
+        list_save(&list);
+        break;
+    case SDLK_BACKSPACE:
+        list_current_item_remove_character(&list);
+        break;
+    default:
+       list_current_item_add_character(&list,(char)key_code);
+        break;
+    }
+}
+
 int WinMain(int argc, char *argv[])
 {
     int sdl_init = SDL_Init(0);
@@ -18,6 +45,10 @@ int WinMain(int argc, char *argv[])
     }
     // Load font
     font = TTF_OpenFont("./assets/fonts/font.ttf", 16);
+    if (font == NULL) {
+        printf("Can't load font");
+        return 1;
+    }
 
     SDL_Window *window = SDL_CreateWindow("TO-DO", 100, 100, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
     if (window == NULL) {
@@ -37,12 +68,14 @@ int WinMain(int argc, char *argv[])
 
     //Initalize the to-do list
     list.size = 1;
-    if (init_list()) {
+    if (list_init(&list)) {
         printf("Can't init the list");
         return 1;
     }
+
+    printf("%s", list.save_path);
     
-    if (load_list()) {
+    if (list_load(&list)) {
         printf("Can't load the list from save");
         return 1;
     };
@@ -51,7 +84,7 @@ int WinMain(int argc, char *argv[])
     {
         SDL_RenderClear(renderer);
 
-        draw_list(renderer);
+        list_draw(&list, renderer);
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderPresent(renderer);
@@ -73,7 +106,7 @@ int WinMain(int argc, char *argv[])
     }
 
     //Free the to-do list
-    free_list();
+    list_free(&list);
 
     TTF_CloseFont(font);
     SDL_DestroyRenderer(renderer);
