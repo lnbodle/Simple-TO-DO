@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "todo.c"
 
+TTF_Font *font;
 struct List list;
 
 void manage_key(SDL_Keycode key_code)
@@ -43,7 +44,7 @@ int WinMain(int argc, char *argv[])
         printf("SDL_TTF can't be initalize");
         return 1;
     }
-    // Load font
+
     font = TTF_OpenFont("./assets/fonts/font.ttf", 16);
     if (font == NULL) {
         printf("Can't load font");
@@ -67,13 +68,11 @@ int WinMain(int argc, char *argv[])
     SDL_Event e;
 
     //Initalize the to-do list
-    list.size = 1;
+    list.size = 0;
     if (list_init(&list)) {
         printf("Can't init the list");
         return 1;
     }
-
-    printf("%s", list.save_path);
     
     if (list_load(&list)) {
         printf("Can't load the list from save");
@@ -84,7 +83,7 @@ int WinMain(int argc, char *argv[])
     {
         SDL_RenderClear(renderer);
 
-        list_draw(&list, renderer);
+        list_draw(&list, renderer, font, 16, 16);
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderPresent(renderer);
@@ -112,5 +111,6 @@ int WinMain(int argc, char *argv[])
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
+
     return 0;
 }

@@ -25,8 +25,6 @@ struct List
     char *save_path;
 };
 
-TTF_Font *font;
-
 /*
     TODO:
     - Manage errors                     [ ]
@@ -69,7 +67,7 @@ int list_free(struct List *list)
     free(list->items);
 }
 
-void list_draw(struct List *list, SDL_Renderer *renderer)
+void list_draw(struct List *list, SDL_Renderer *renderer, TTF_Font *font, int position_x, int position_y)
 {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
@@ -78,30 +76,47 @@ void list_draw(struct List *list, SDL_Renderer *renderer)
     for (int i = 0; i < list->size; i++)
     {
 
-        int x = 16;
-        int y = 4 + i * 18;
+        int width;
+        int height;
+        TTF_SizeText(font, list->items[i].text, &width, &height);
 
-        if (list->items[i].statue)
+        int x = position_x;
+        int y = position_y + i * height;
+
+        char *line_indicator;
+        if (list->index == i)
+        {
+            line_indicator = ">";
+            x += 5;
+        }
+        else
+        {
+            if (list->items[i].statue)
+            {
+                line_indicator = "O";
+            }
+            else
+            {
+                line_indicator = "X";
+            }
+        }
+        int line_indicator_width;
+        TTF_SizeText(font, line_indicator, &line_indicator_width, NULL);
+        draw_text(renderer, font, line_indicator, x + line_indicator_width, y, color);
+
+        int nx = x + line_indicator_width * 2 + 8;
+
+        if (list->items[i].statue && strlen(list->items[i].text))
         {
             int text_size = strlen(list->items[i].text);
-            if (text_size > 0)
-                SDL_RenderDrawLine(renderer, x, y + 7, x + text_size * 9, y + 7);
+            SDL_Rect rect = {nx, y + height / 2 - 1, width, 2 };
+            SDL_RenderDrawRect(renderer, &rect);
         }
 
         char *text = list->items[i].text;
         SDL_Color red_color = {255, 0, 0};
-        draw_text(renderer, font, text, x, y, color);
-
-        if (list->index == i)
-            continue;
-
-        draw_text(renderer, font, "-", x - 12, y, color);
+        draw_text(renderer, font, text, nx, y, color);
     }
-    SDL_Color white_color = {255, 255, 255};
-    draw_text(renderer, font, ">", 4, 4 + list->index * 18, color);
-
-    // TODO : MAKE THIS NOT USELESS
-    // draw_text(renderer, font, "|", 4 + list.cursor_index * 9, list.index * 18, color);
 }
 
 void list_save(struct List *list)
@@ -114,6 +129,10 @@ void list_save(struct List *list)
 
     for (int i = 0; i < list->size; i++)
     {
+        if (strlen(list->items[i].text) == 0)
+        {
+            continue;
+        }
 
         itoa(list->items[i].statue, item_statue_buffer, 10);
 
@@ -130,45 +149,25 @@ void list_save(struct List *list)
 int list_load(struct List *list)
 {
 
-    FILE *fptr;
-    fptr = fopen(list->save_path, "r");
+    FILE *file;
+    file = fopen(list->save_path, "r");
 
-    char c;
-    int buffer_index = 0;
-    int index = 0;
-
-    if (fptr == NULL)
+    if (file == NULL)
     {
         return 1;
     }
 
-    while (c != EOF)
+    char current_line[999];
+
+    while (fgets(current_line, 999, file))
     {
-        c = getc(fptr);
-
-        if (c == '|')
-        {
-            // Update the size of the list
-            list_set_size(list, list->size + 1); // May check if the list is not null
-
-            c = getc(fptr);
-            const char buffer[1] = {c};
-            list->items[buffer_index].statue = atoi(buffer);
-            c = getc(fptr);
-            buffer_index++;
-            index = 0;
-        }
-        else
-        {
-            if (index < MAX_STRING_LENGTH)
-            {
-                list->items[buffer_index].text[index] = c;
-            }
-            index++;
-        }
+        list_set_size(list, list->size + 1); // May check if the list is not null
+        struct Item new_item;
+        sscanf(current_line, "%[^|];%d", new_item.text, &new_item.statue);
+        list->items[list->size - 1] = new_item;
     }
 
-    fclose(fptr);
+    fclose(file);
 
     return 0;
 }
@@ -203,9 +202,12 @@ void list_current_item_toggle_statue(struct List *list)
 
 void list_next_item(struct List *list)
 {
-    if (list->index > list->size - 1)
+    if (list->index == list->size)
     {
         list_set_size(list, list->size + 1); // May check if the list is not null
+
+        struct Item new_item = {"", 0};
+        list->items[list->size - 1] = new_item;
     }
     list->index++;
 }
@@ -215,5 +217,3 @@ void list_previous_item(struct List *list)
     if (list->index > 0)
         list->index--;
 }
-
-
