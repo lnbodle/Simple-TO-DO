@@ -5,26 +5,6 @@
 #include <dirent.h>
 #include "draw_utils.c"
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
-#define LIST_LENGTH 20
-#define MAX_STRING_LENGTH 100
-
-struct Item
-{
-    char text[MAX_STRING_LENGTH];
-    int statue;
-};
-
-struct List
-{
-    struct Item *items;
-    size_t size;
-    int index;
-    int cursor_index;
-    char *save_path;
-};
-
 /*
     TODO:
     - Manage errors                     [ ]
@@ -38,11 +18,77 @@ struct List
     - Show save states                  [ ]
 */
 
-int list_init(struct List *list)
-{
-    list->save_path = "./saves/save.txt";
+#define SCREEN_WIDTH 640
+#define SCREEN_HEIGHT 480
+#define LIST_LENGTH 20
+#define MAX_STRING_LENGTH 100
 
-    list->items = calloc(list->size, sizeof(struct Item));
+typedef struct Item
+{
+    char text[MAX_STRING_LENGTH];
+    int statue;
+} Item;
+
+typedef struct List
+{
+    struct Item *items;
+    size_t size;
+    int index;
+    int cursor_index;
+} List;
+
+typedef struct Save
+{
+    char path[99];
+} Save;
+
+typedef struct Saves
+{
+    struct Save saves[99];
+    size_t size;
+    char *folder_path;
+    int index;
+} Saves;
+
+int saves_init(struct Saves *saves)
+{
+
+    // Need to be moved but ahah
+    saves->folder_path = "./saves/";
+
+    DIR *d;
+    struct dirent *dir;
+    d = opendir(saves->folder_path);
+    int i = 0;
+    int index = 0;
+    if (d)
+    {
+        while ((dir = readdir(d)) != NULL)
+        {
+            if (i >= 2)
+            {
+
+                printf("vhiasse");
+                printf("\n");
+
+                strcpy(saves->saves[index].path, saves->folder_path);
+                strcat(saves->saves[index].path, dir->d_name);
+                saves->size++;
+                 index++;
+        
+            } // Maybe bad skipping the 2 first but ?
+            i++;
+        }
+        closedir(d);
+    }
+    return (0);
+}
+
+int list_init(List *list)
+{
+    // list_get_saves(list);
+
+    list->items = calloc(list->size, sizeof(Item));
     if (list->items == NULL)
     {
         return 1;
@@ -54,7 +100,7 @@ int list_set_size(struct List *list, size_t new_size)
 {
 
     list->size = new_size;
-    list->items = realloc(list->items, list->size * sizeof(struct Item));
+    list->items = realloc(list->items, list->size * sizeof(Item));
     if (list->items == NULL)
     {
         return 1;
@@ -62,12 +108,12 @@ int list_set_size(struct List *list, size_t new_size)
     return 0;
 }
 
-int list_free(struct List *list)
+int list_free(List *list)
 {
     free(list->items);
 }
 
-void list_draw(struct List *list, SDL_Renderer *renderer, TTF_Font *font, int position_x, int position_y)
+void list_draw(List *list, SDL_Renderer *renderer, TTF_Font *font, int position_x, int position_y)
 {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
@@ -100,6 +146,7 @@ void list_draw(struct List *list, SDL_Renderer *renderer, TTF_Font *font, int po
                 line_indicator = "X";
             }
         }
+
         int line_indicator_width;
         TTF_SizeText(font, line_indicator, &line_indicator_width, NULL);
         draw_text(renderer, font, line_indicator, x + line_indicator_width, y, color);
@@ -109,7 +156,7 @@ void list_draw(struct List *list, SDL_Renderer *renderer, TTF_Font *font, int po
         if (list->items[i].statue && strlen(list->items[i].text))
         {
             int text_size = strlen(list->items[i].text);
-            SDL_Rect rect = {nx, y + height / 2 - 1, width, 2 };
+            SDL_Rect rect = {nx, y + height / 2 - 1, width, 2};
             SDL_RenderDrawRect(renderer, &rect);
         }
 
@@ -119,11 +166,22 @@ void list_draw(struct List *list, SDL_Renderer *renderer, TTF_Font *font, int po
     }
 }
 
-void list_save(struct List *list)
+void saves_draw(Saves *saves, SDL_Renderer *renderer, TTF_Font *font, int position_x, int position_y)
+{
+
+    for (int i = 0; i < saves->size; i++)
+    {
+
+        SDL_Color color = {255, 0, 0};
+        draw_text(renderer, font, saves->saves[i].path, position_x, position_y + i * 18 - (saves->size + 1) * 18, color);
+    }
+}
+
+void list_save(List *list, struct Saves *saves)
 {
     FILE *fptr;
 
-    fptr = fopen(list->save_path, "w");
+    fptr = fopen(saves->saves[saves->index].path, "w");
 
     char item_statue_buffer[5];
 
@@ -146,11 +204,14 @@ void list_save(struct List *list)
     fclose(fptr);
 }
 
-int list_load(struct List *list)
+int list_load(List *list, struct Saves *saves)
 {
 
     FILE *file;
-    file = fopen(list->save_path, "r");
+    file = fopen(saves->saves[saves->index].path, "r");
+
+    printf("%s", saves->saves[saves->index].path);
+    printf("\n");
 
     if (file == NULL)
     {
@@ -172,7 +233,7 @@ int list_load(struct List *list)
     return 0;
 }
 
-void list_current_item_add_character(struct List *list, char c)
+void list_current_item_add_character(List *list, char c)
 {
 
     size_t size = strlen(list->items[list->index].text);
@@ -184,7 +245,7 @@ void list_current_item_add_character(struct List *list, char c)
     }
 }
 
-void list_current_item_remove_character(struct List *list)
+void list_current_item_remove_character(List *list)
 {
     size_t size = strlen(list->items[list->index].text) - 1;
 
@@ -195,12 +256,12 @@ void list_current_item_remove_character(struct List *list)
     }
 }
 
-void list_current_item_toggle_statue(struct List *list)
+void list_current_item_toggle_statue(List *list)
 {
     list->items[list->index].statue = !list->items[list->index].statue;
 }
 
-void list_next_item(struct List *list)
+void list_next_item(List *list)
 {
     if (list->index == list->size)
     {
@@ -212,7 +273,7 @@ void list_next_item(struct List *list)
     list->index++;
 }
 
-void list_previous_item(struct List *list)
+void list_previous_item(List *list)
 {
     if (list->index > 0)
         list->index--;
