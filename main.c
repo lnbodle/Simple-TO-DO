@@ -1,17 +1,27 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdio.h>
-#include "todo.c"
+#include "list.c"
+
 
 TTF_Font *font;
 
 struct List list;
 struct Saves saves;
 
+
 void manage_key(SDL_Keycode key_code)
 {
     switch (key_code)
     {
+    case SDLK_TAB:
+        saves_next(&saves);
+        list_free(&list);
+        list.size = 0;
+        list.index = 0;
+        list_init(&list);
+        list_load(&list, &saves);
+        break;
     case SDLK_DOWN:
         list_next_item(&list);
         break;
